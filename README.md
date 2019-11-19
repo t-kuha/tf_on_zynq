@@ -1,6 +1,6 @@
 # tf_on_zynq
 
-Build TensorFlow for Zynq MPSoC
+Build TensorFlow for Zynq MPSoC (Based on [lhelontra/tensorflow-on-arm](https://github.com/lhelontra/tensorflow-on-arm.git) )
 
 - How to use:
 
