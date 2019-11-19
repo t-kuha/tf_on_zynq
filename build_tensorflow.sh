@@ -60,30 +60,34 @@ function log_app_msg() {
 	echo -ne "[${BLUE}INFO${NC}] $@\n"
 }
 
-function create_workdir()
-{
-  WORKDIR=${WORKDIR}/sources
-  if [ ! -d $WORKDIR ]; then
-    mkdir -p ${WORKDIR} || {
-      log_failure_msg "error when creates workdir $WORKDIR"
-      exit 1
-    }
-  fi
-  return 0
-}
+#function create_workdir()
+#{
+#  WORKDIR=${WORKDIR}/sources
+#  if [ ! -d $WORKDIR ]; then
+#    mkdir -p ${WORKDIR} || {
+#      log_failure_msg "error when creates workdir $WORKDIR"
+#      exit 1
+#    }
+#  fi
+#  return 0
+#}
 
 function get_bazel()
 {
   BAZELDIR=${WORKDIR}/bin
   PATH="${BAZELDIR}:${PATH}"
 
-echo "___"
+  BAZEL_BIN=$(which bazel)
+#echo $PATH
+
+#test -x "bazel"
+#echo $(which bazel)
+
 #  BAZEL_BIN=$(bazel)
-echo "___"
   # Get bazel if version is different or not found
-  if [[ -x "bazel" ]]; then
+  if [ -n ${BAZEL_BIN} ]; then
     log_app_msg "Found bazel"
-    
+
     if [ "$($BAZEL_BIN version | grep -i 'label' | awk '{ print $3 }' | tr -d '-')" == "${BAZEL_VERSION}" ]; then
       log_app_msg "Expected version (${BAZEL_VERSION}) of bazel"
         #   BAZEL_BIN="${WORKDIR}/bin/bazel-${BAZEL_VERSION}"
@@ -101,7 +105,7 @@ echo "___"
       exit 1
     }
   fi
-  
+
   log_app_msg "Could not find bazel (${BAZEL_VERSION})"
   wget https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-linux-x86_64 -O ${BAZELDIR}/bazel
   chmod +x ${BAZELDIR}/bazel
@@ -109,49 +113,6 @@ echo "___"
   BAZEL_BIN=$(which bazel)
 
   return 0
-
-
-
-  # if [ -f "$BAZEL_BIN" ]; then
-  #   log_app_msg "bazel already installed."
-  #   # make sure using correct bazel version
-  #   rm -f ${WORKDIR}/bin/bazel &>/dev/null
-  #   ln -sf "${WORKDIR}/bin/bazel-${BAZEL_VERSION}" "${WORKDIR}/bin/bazel" &>/dev/null
-  #   return 0
-  # fi
-
-  # cd $WORKDIR
-
-  # if [ ! -f bazel-${BAZEL_VERSION}-dist.zip ]; then
-  #   wget --no-check-certificate https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-dist.zip
-  # fi
-
-  # if [ ! -d bazel-${BAZEL_VERSION} ]; then
-  #   mkdir bazel-${BAZEL_VERSION}
-  #   unzip bazel-${BAZEL_VERSION}-dist.zip -d bazel-${BAZEL_VERSION}/
-  #   rm -f bazel-${BAZEL_VERSION}-dist.zip
-  #   cd bazel-${BAZEL_VERSION}/
-  #   if [ "$BAZEL_PATCH" == "yes" ]; then
-  #     bazel_patch || {
-  #       log_failure_msg "error when apply patch"
-  #       exit 1
-  #     }
-  #   fi
-  # else
-  #   cd bazel-${BAZEL_VERSION}/
-  # fi
-
-  # ./compile.sh
-  # if [ ! -f ./output/bazel ]; then
-  #   log_failure_msg "error when compile bazel"
-  #   exit 1
-  # fi
-
-  # chmod +x output/bazel
-  # mv output/bazel "${WORKDIR}/bin/bazel-${BAZEL_VERSION}"
-  # ln -sf "${WORKDIR}/bin/bazel-${BAZEL_VERSION}" "${WORKDIR}/bin/bazel" &>/dev/null
-
-  # return 0
 }
 
 function toolchain()
@@ -159,27 +120,17 @@ function toolchain()
   [ "$CROSSTOOL_COMPILER" != "yes" ] && return 0
 
   CXX_COMPILER=${CROSSTOOL_NAME}-g++
-  if [ -x ${CXX_COMPILER} ]; then
+#  if [ -x ${CXX_COMPILER} ]; then
+#    log_failure_msg "Could not find cross-compiler (${CXX_COMPILER})"
+#    exit 1
+#  fi
+
+  if [ -z $(which ${CXX_COMPILER}) ];then
     log_failure_msg "Could not find cross-compiler (${CXX_COMPILER})"
     exit 1
   fi
 
   CROSSTOOL_DIR=$(dirname $(dirname $(which ${CXX_COMPILER})))
-  # CROSSTOOL_DIR="/home/pentaxmedical/xilinx/Vitis/2019.2/gnu/aarch64/lin/aarch64-linux/"
-
-  # [ ! -d "${CROSSTOOL_DIR}/bin/" ] && {
-  #   mkdir -p ${WORKDIR}/toolchain/
-  #   wget --no-check-certificate $CROSSTOOL_URL -O toolchain.tar.xz || {
-  #     log_failure_msg "error when download crosstool"
-  #     exit 1
-  #   }
-  #   tar xf toolchain.tar.xz -C ${WORKDIR}/toolchain/ || {
-  #     log_failure_msg "error when extract crosstool"
-  #     exit 1
-  #   }
-  #   rm toolchain.tar.xz &>/dev/null
-  # }
-
 }
 
 function download_tensorflow()
@@ -235,23 +186,6 @@ function configure_tensorflow()
   # $BAZEL_BIN clean
   # export PYTHON_BIN_PATH=$(command -v python${TF_PYTHON_VERSION})
   export ${TF_BUILD_VARS}
-
-  # if need_cuda is enabled, search sdk
-  # if [ "$TF_NEED_CUDA" == "1" ]; then
-  #    local nvcc_path=$(command -v nvcc)
-
-  #    if [ ! -z "$nvcc_path" ]; then
-  #        local cuda_location=$(echo $nvcc_path | sed 's/\/bin\/nvcc//')
-  #        local cuda_version=$(cat "${cuda_location}/version.txt" | awk '{ print $3 }' | cut -d'.' -f-2)
-  #        local cudnn_version=$(readlink $(find "${cuda_location}/" -iname '*libcudnn.so') | cut -d'.' -f3)
-
-  #        export CUDA_TOOLKIT_PATH="$cuda_location"
-  #        export TF_CUDA_VERSION=$cuda_version
-  #        export TF_CUDNN_VERSION=$cudnn_version
-  #    else
-  #        export TF_NEED_CUDA=0
-  #    fi
-  # fi
 
   yes '' | ./configure || {
       log_failure_msg "error when configure tensorflow"
@@ -314,13 +248,9 @@ function build_tensorflow()
 function prepare_env()
 {
   # prepare environment for compiling
-  echo "*****"
-  create_workdir
-  echo "*****"
+#  create_workdir
   get_bazel
-  echo "*****"
   toolchain
-  echo "*****"
   download_tensorflow
   echo -ne "Workdir:            \t${WORKDIR}\n"
   echo -ne "Bazel binary:       \t${BAZEL_BIN}\n"
@@ -330,11 +260,8 @@ function prepare_env()
 
 function main()
 {
-    echo "--------------------"
     prepare_env
-echo "--------------------"
     configure_tensorflow
-echo "--------------------"
     build_tensorflow
 }
 
