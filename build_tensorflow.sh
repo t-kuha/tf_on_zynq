@@ -77,15 +77,11 @@ function get_bazel()
   BAZELDIR=${WORKDIR}/bin
   PATH="${BAZELDIR}:${PATH}"
 
-  BAZEL_BIN=$(which bazel)
-#echo $PATH
-
-#test -x "bazel"
-#echo $(which bazel)
-
 #  BAZEL_BIN=$(bazel)
   # Get bazel if version is different or not found
-  if [ -n ${BAZEL_BIN} ]; then
+  if [ "$(type -t bazel)" = "builtin" ] || [ "$(type -t bazel)" = "file" ]; then
+#  if [ -n ${BAZEL_BIN} ]; then
+    BAZEL_BIN=bazel
     log_app_msg "Found bazel"
 
     if [ "$($BAZEL_BIN version | grep -i 'label' | awk '{ print $3 }' | tr -d '-')" == "${BAZEL_VERSION}" ]; then
@@ -151,7 +147,7 @@ function download_tensorflow()
     wget https://github.com/tensorflow/tensorflow/archive/${TF_VERSION}.tar.gz
   fi
 
-  # 
+  #
   log_app_msg "Extracting TensorFlow source..."
   mkdir tensorflow
   tar xf ${TF_VERSION}.tar.gz -C tensorflow --strip-components=1
